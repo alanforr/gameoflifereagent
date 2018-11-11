@@ -45,7 +45,7 @@
      {:style {:background  colour}}
      [:rect ^{:key ind}
          {:style
-          {:border "1px solid"
+          {:border "1px solid black"
            :fill  colour
            :width box-side
            :height box-side}}]]))
@@ -85,6 +85,9 @@
   (let [nb (count-board-neighbours b)
         brows (into [] (partition (:xnumber b) nb))]
     brows))
+
+(defn flip-square [[ind sqstate]]
+  [[ind ({0 1 1 0} sqstate)]])
 
 (defn neighbour-indices [index xnum ynum]
   (let [nb-adds  [-1 1 (- xnum) (- 1 xnum) (- 0 1 xnum)
@@ -130,7 +133,7 @@
      :cell-size cell-size
      :contents conts}))
 
-(defn board-setup [cell-size xnum ynum]
+(defn random-board [cell-size xnum ynum]
   {:xnumber xnum
    :ynumber ynum
    :nb-indices (mapv #(neighbour-indices % xnum ynum) (range (* xnum ynum)))
@@ -167,7 +170,7 @@
 
 (defn reset-button []
   [:input {:type "button" :value "Next board"
-           :on-click #(swap! board-state (board-with-blinker 20 10 10 1 1))}])
+           :on-click #(reset! board-state (board-with-blinker 20 10 10 1 1))}])
 
 (defn board []
    [:div
