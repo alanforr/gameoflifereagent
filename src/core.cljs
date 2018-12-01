@@ -4,11 +4,7 @@
 
 (enable-console-print!)
 
-(println "This text is printed from src/gameoflife/core.cljs. Go ahead and edit it and see reloading in action.")
-
 ;  clj -R:repl build.clj figwheel
-
-;<g transform="translate(0,200)" data-reactid=".0.1.0.$0,4"><g data-reactid=".0.1.0.$0,4.0"><rect style="fill:#D7DBDD;" width="50" height="50" data-reactid=".0.1.0.$0,4.0.0"></rect><polygon style="fill:#E5E7E9;" points="1,49 49,1 1,1" data-reactid=".0.1.0.$0,4.0.1"></polygon><polygon style="fill:#979A9A;" points="49,1 1,49 49,49" data-reactid=".0.1.0.$0,4.0.2"></polygon><rect style="fill:#D0D3D4;cursor:pointer;" width="44" height="44" x="3" y="3" data-reactid=".0.1.0.$0,4.0.3"></rect></g></g>
 
 (defn n-randoms [n]
   "produces n random numbers picked from 0 to 1"
@@ -38,23 +34,31 @@
   (and (in-window xlabel [0 (dec xnum)])
        (in-window ylabel [0 (dec ynum)])))
 
-(defn square [cell-size xnum ind colour]
+(defn flip-cell [[ind sqstate]]
+  [ind ({0 1 1 0} sqstate)])
+
+(defn square-click [ind curr-board]
+  (update-in curr-board [:contents ind] flip-cell))
+
+(defn square [cell-size xnum ind colour curr-board]
   (let [box-side (str cell-size "px")
         [x y] (index-to-coords xnum ind cell-size)]
-    [:g {:transform (str "translate(" x "," y ")")}
+    [:g
+     {:transform (str "translate(" x "," y ")")}
      {:style {:background  colour}}
      [:rect ^{:key ind}
-         {:style
-          {:border "1px solid black"
-           :fill  colour
-           :width box-side
-           :height box-side}}]]))
+      {:on-click (fn [] (swap! curr-board #(square-click ind @curr-board)))
+       :style
+       {:border "1px solid black"
+        :fill  colour
+        :width box-side
+        :height box-side}}]]))
 
-(defn live-square [cell-size xnum ind]
-  (square cell-size xnum ind "black"))
+(defn live-square [cell-size xnum ind curr-board]
+  (square cell-size xnum ind "black" curr-board))
 
-(defn dead-square [cell-size xnum ind]
-  (square cell-size xnum ind "white"))
+(defn dead-square [cell-size xnum ind curr-board]
+  (square cell-size xnum ind "white" curr-board))
 
 (defn count-live-neighbours [conts nb]
   (reduce + (mapv #((conts %) 1) nb)))
@@ -86,9 +90,6 @@
         brows (into [] (partition (:xnumber b) nb))]
     brows))
 
-(defn flip-square [[ind sqstate]]
-  [[ind ({0 1 1 0} sqstate)]])
-
 (defn neighbour-indices [index xnum ynum]
   (let [nb-adds  [-1 1 (- xnum) (- 1 xnum) (- 0 1 xnum)
                   xnum (inc xnum) (dec xnum)]
@@ -111,16 +112,29 @@
 (defn blinker-state [x y]
   {[x y] 1 [(inc x) y] 1 [(+ 2 x) y] 1})
 
+(defn blank-board [cell-size xnum ynum]
+    {:xnumber xnum
+     :ynumber ynum
+     :nb-indices (mapv #(neighbour-indices % xnum ynum) (range (* xnum ynum)))
+     :xsize (* xnum cell-size)
+     :ysize (* ynum cell-size)
+     :next-xnumber  xnum
+     :next-ynumber ynum
+     :cell-size cell-size
+     :contents (vector (repeat (* xnum ynum) 0))})
+
 (defn board-with-glider  [cell-size xnum ynum xglider yglider]
   (let [glider (glider-state xglider yglider)
         conts (mapv #(vector % (get glider (index-to-label xnum %) 0) )(range (* xnum ynum)))]
    {:xnumber xnum
-   :ynumber ynum
-   :nb-indices (mapv #(neighbour-indices % xnum ynum) (range (* xnum ynum)))
-   :xsize (* xnum cell-size)
-   :ysize (* ynum cell-size)
-   :cell-size cell-size
-   :contents conts}))
+    :ynumber ynum
+    :nb-indices (mapv #(neighbour-indices % xnum ynum) (range (* xnum ynum)))
+    :xsize (* xnum cell-size)
+    :ysize (* ynum cell-size)
+    :next-xnumber  xnum
+    :next-ynumber  ynum
+    :cell-size cell-size
+    :contents conts}))
 
 (defn board-with-blinker  [cell-size xnum ynum xblinker yblinker]
   (let [glider (blinker-state xblinker yblinker)
@@ -130,6 +144,8 @@
      :nb-indices (mapv #(neighbour-indices % xnum ynum) (range (* xnum ynum)))
      :xsize (* xnum cell-size)
      :ysize (* ynum cell-size)
+     :next-xnumber  xnum
+     :next-ynumber  ynum
      :cell-size cell-size
      :contents conts}))
 
@@ -139,48 +155,49 @@
    :nb-indices (mapv #(neighbour-indices % xnum ynum) (range (* xnum ynum)))
    :xsize (* xnum cell-size)
    :ysize (* ynum cell-size)
+   :next-xnumber  xnum
+   :next-ynumber ynum
    :cell-size cell-size
    :contents (vec (map-indexed (fn [ind n] [ind n]) (probability-pick (* xnum ynum) 0.5 [1 0])))})
 
-(def test-board
-  (board-setup 20 10 10))
-
-(defn square-render [s cell-size xnum ind]
+(defn square-render [s cell-size xnum ind curr-board]
   (if (zero? s)
-    (dead-square cell-size xnum ind)
-    (live-square cell-size xnum ind)))
+    (dead-square cell-size xnum ind curr-board)
+    (live-square cell-size xnum ind curr-board)))
 
 (defn board-maker [b]
-  (for [[ind n] (:contents b)]
-    (square-render n (:cell-size b) (:xnumber b) ind)))
+  (for [[ind n] (:contents @b)]
+    (square-render n (:cell-size @b) (:xnumber @b) ind b)))
 
 (defn board-render [b]
-  (into [:svg
-         {:style
-          {:border "1px solid"
-           :width (:xsize b)
-           :height (:ysize b)}}]
-        (board-maker b)))
+  (let [title [:h1 "Game of life"]
+        next [:div [:input {:type "button" :value "Next board"
+                      :on-click #(swap! b board-next-state)}]]
+        xset [:div "set next x size"
+              [:input {:type "text" :default-value (:next-xnumber @b)
+                       :on-input (fn [e] (swap! b assoc :next-xnumber
+                                                (int (-> e .-target .-value))))}]]
+        yset  [:div "set next y size"
+               [:input {:type "text" :default-value (:next-ynumber @b)
+                        :on-input (fn [e] (swap! b assoc :next-ynumber
+                                                 (int (-> e .-target .-value))))}]]
+        newboard [:div  [:input {:type "button" :value "New board"
+                                 :on-click #(reset! b
+                                                    (blank-board 20 (:next-xnumber @b)
+                                                                 (:next-ynumber @b)))}]]
+        life-display (into [:svg
+                            {:style
+                             {:border "1px solid black"
+                              :width (:xsize @b)
+                              :height (:ysize @b)}}]
+                           (board-maker b))]
+    [:div title next xset yset newboard life-display]))
 
-(def board-state (atom (board-with-blinker 20 10 10 1 1)))
-
-(defn next-button []
-  [:input {:type "button" :value "Next board"
-           :on-click #(swap! board-state board-next-state)}])
-
-(defn reset-button []
-  [:input {:type "button" :value "Next board"
-           :on-click #(reset! board-state (board-with-blinker 20 10 10 1 1))}])
+(def board-state (atom (board-with-glider 20 50 50 1 1)))
 
 (defn board []
    [:div
-    [:h1 "Game of life"]
-    [:div [:input {:type "button" :value "Next board"
-                   :on-click #(swap! board-state board-next-state)}]]
-    [:div  [:input {:type "button" :value "Reset board"
-                    :on-click #(reset! board-state
-                                      (board-with-blinker 20 10 10 1 1))}]]
-    [:div (board-render @board-state)]])
+    [:div (board-render board-state)]])
 
 (reagent/render-component
  [board]
