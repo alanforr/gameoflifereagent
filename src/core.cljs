@@ -170,18 +170,18 @@
     (square-render n (:cell-size @b) (:xnumber @b) ind b)))
 
 (defn board-render [b]
-  (let [title [:h1 "Game of life"]
-        next [:div [:input {:type "button" :value "Next board"
+  (let [title [:h1.head "Game of life"]
+        next [:div [:input {:type "button" :value "Next board" :class "button"
                       :on-click #(swap! b board-next-state)}]]
-        xset [:div "set next x size"
-              [:input {:type "text" :default-value (:next-xnumber @b)
+        xset [:div [:h3.head "Next x size"]
+              [:input.textything {:type "text" :default-value (:next-xnumber @b)
                        :on-input (fn [e] (swap! b assoc :next-xnumber
                                                 (int (-> e .-target .-value))))}]]
-        yset  [:div "set next y size"
-               [:input {:type "text" :default-value (:next-ynumber @b)
+        yset  [:div [:h3.head "Next y size"]
+               [:input.textything {:type "text" :default-value (:next-ynumber @b)
                         :on-input (fn [e] (swap! b assoc :next-ynumber
                                                  (int (-> e .-target .-value))))}]]
-        newboard [:div  [:input {:type "button" :value "New board"
+        newboard [:div  [:input {:type "button" :value "New board" :class "button"
                                  :on-click #(reset! b
                                                     (blank-board 20 (:next-xnumber @b)
                                                                  (:next-ynumber @b)))}]]
@@ -196,7 +196,7 @@
 (def board-state (atom (board-with-glider 20 50 50 1 1)))
 
 (defn board []
-   [:div
+   [:div 
     [:div (board-render board-state)]])
 
 (reagent/render-component
