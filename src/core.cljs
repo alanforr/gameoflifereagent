@@ -113,7 +113,8 @@
   {[x y] 1 [(inc x) y] 1 [(+ 2 x) y] 1})
 
 (defn blank-board [cell-size xnum ynum]
-    {:xnumber xnum
+  (let [conts (mapv #(vector % 0) (range (* xnum ynum)))]
+   {:xnumber xnum
      :ynumber ynum
      :nb-indices (mapv #(neighbour-indices % xnum ynum) (range (* xnum ynum)))
      :xsize (* xnum cell-size)
@@ -121,7 +122,7 @@
      :next-xnumber  xnum
      :next-ynumber ynum
      :cell-size cell-size
-     :contents (vector (repeat (* xnum ynum) 0))})
+     :contents conts}))
 
 (defn board-with-glider  [cell-size xnum ynum xglider yglider]
   (let [glider (glider-state xglider yglider)
@@ -182,7 +183,7 @@
                         :on-input (fn [e] (swap! b assoc :next-ynumber
                                                  (int (-> e .-target .-value))))}]]
         newboard [:div  [:input {:type "button" :value "New board" :class "button"
-                                 :on-click #(reset! b
+                                 :on-click #(reset! b 
                                                     (blank-board 20 (:next-xnumber @b)
                                                                  (:next-ynumber @b)))}]]
         life-display (into [:svg
